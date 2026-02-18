@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>화이트데이 이벤트</title>
 
 <style>
@@ -17,11 +17,11 @@ body{
   justify-content:center;
   align-items:center;
   padding:24px;
-  overflow:hidden;
+  overflow:hidden; /* 스크롤 방지 */
 
   background-image:
     linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)),
-    url("01.jpg");
+    url("01.jpg"); /* 이미지 경로 확인 필요 */
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
@@ -39,13 +39,14 @@ body{
   text-align:center;
   box-shadow:0 15px 40px rgba(0,0,0,.25);
   position:relative;
-  z-index:10; /* ✅ 클릭 안 막히게 */
+  z-index:10;
 }
 
 h1{
   font-size:20px;
   line-height:1.6;
   margin:0 0 24px;
+  word-break: keep-all;
 }
 
 .btn-container{
@@ -53,28 +54,45 @@ h1{
   width:280px;
   height:56px;
   margin:0 auto;
-  touch-action: manipulation; /* ✅ 모바일 탭 반응 개선 */
 }
 
 .btn{
-  position:absolute;
-  top:0;
   width:120px;
   height:48px;
   border:none;
   border-radius:30px;
   font-size:16px;
+  font-weight: bold;
   cursor:pointer;
   user-select:none;
-  z-index:20;            /* ✅ 클릭 안 막히게 */
-  pointer-events:auto;   /* ✅ 클릭 안 막히게 */
-  transition: transform .15s ease;
+  z-index:100; /* 버튼이 가장 위에 오도록 */
+  transition: all 0.1s ease-out; /* ✅ 더 빠르게 반응하도록 시간 단축 */
 }
 
-.btn:active{ transform:scale(.98); }
+.yes{
+  background:#ff4d6d;
+  color:#fff;
+  /* Yes 버튼은 흐름 유지 */
+  position: absolute;
+  left: 0;
+  top: 0;
+}
 
-.yes{ left:0; background:#ff4d6d; color:#fff; }
-.no { left:160px; background:#d6d6d6; color:#111; }
+.yes:active { transform: scale(0.95); }
+
+.no {
+  background:#d6d6d6;
+  color:#111;
+  position: absolute; /* 초기엔 컨테이너 기준 */
+  right: 0;           /* 초기 위치 */
+  top: 0;
+}
+
+/* 도망갈 때 적용할 클래스 */
+.runaway {
+  position: fixed !important; /* ✅ 화면 전체 기준 이동 */
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
 
 .result{
   margin-top:18px;
@@ -82,18 +100,25 @@ h1{
   font-weight:700;
   color:#ff4d6d;
   display:none;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .heart{
   position:fixed;
   pointer-events:none;
   animation: float 2.8s linear forwards;
-  z-index:5;
+  z-index:200;
+  font-size: 24px;
 }
 
 @keyframes float{
-  0%{ transform:translateY(0); opacity:1; }
-  100%{ transform:translateY(-300px); opacity:0; }
+  0%{ transform:translateY(0) scale(1); opacity:1; }
+  100%{ transform:translateY(-100vh) scale(1.5); opacity:0; }
 }
 </style>
 </head>
@@ -101,8 +126,8 @@ h1{
 <body>
   <div class="card">
     <h1>
-      발렌타인데이에는 못만났지만<br>
-      화이트데이에 같이 데이트 할래?
+      화이트데이에 같이 데이트 할래?<br>
+      다음날에 이른 약속 잡지마!
     </h1>
 
     <div class="btn-container" id="btnArea">
@@ -115,61 +140,78 @@ h1{
 
 <script>
 (function () {
-  const yesBtn = document.getElementById("yesBtn") || document.querySelector(".yes");
-  const noBtn  = document.getElementById("noBtn")  || document.querySelector(".no");
-  const btnArea = document.getElementById("btnArea") || document.querySelector(".btn-container");
+  const yesBtn = document.getElementById("yesBtn");
+  const noBtn  = document.getElementById("noBtn");
   const result = document.getElementById("result");
+  
+  // 상태 변수
+  let isRunning = false;
 
-  if (!yesBtn || !noBtn || !btnArea) {
-    // 요소가 없으면(복붙 실수) 그냥 종료
-    return;
-  }
-
+  // 1. YES 버튼 로직
   yesBtn.addEventListener("click", () => {
-    document.body.style.backgroundImage =
-      'linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url("02.jpg")';
+    // 배경 이미지 변경 (이미지 파일이 있다면)
+    document.body.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url("02.jpg")';
+    
     if (result) result.style.display = "block";
+    
+    // No 버튼 숨기기 (선택 완료 시)
+    noBtn.style.display = 'none';
+    
     createHearts();
   });
 
+  // 하트 애니메이션
   function createHearts(){
-    for(let i=0;i<20;i++){
-      const h=document.createElement("div");
-      h.className="heart";
-      h.textContent="❤️";
-      h.style.left = (Math.random()*window.innerWidth) + "px";
-      h.style.top  = window.innerHeight + "px";
-      document.body.appendChild(h);
-      setTimeout(()=>h.remove(), 2800);
+    // 하트 폭죽처럼 많이 생성
+    for(let i=0; i<30; i++){
+      setTimeout(() => {
+        const h = document.createElement("div");
+        h.className = "heart";
+        h.textContent = "❤️";
+        h.style.left = (Math.random() * window.innerWidth) + "px";
+        h.style.top  = window.innerHeight + "px";
+        document.body.appendChild(h);
+        setTimeout(()=> h.remove(), 2800);
+      }, i * 50);
     }
   }
 
-  function moveNo(){
-    const w = noBtn.offsetWidth || 120;
-    const h = noBtn.offsetHeight || 48;
-    const maxX = btnArea.clientWidth - w;
-    const maxY = btnArea.clientHeight - h;
+  // 2. NO 버튼 도망 로직 (핵심)
+  function runAway() {
+    // 처음 움직일 때 fixed로 변경하여 화면 전체를 쓰도록 함
+    if (!isRunning) {
+      isRunning = true;
+      noBtn.classList.add('runaway');
+    }
 
-    const x = Math.max(0, Math.random()*maxX);
-    const y = Math.max(0, Math.random()*maxY);
+    const btnWidth = noBtn.offsetWidth;
+    const btnHeight = noBtn.offsetHeight;
 
-    noBtn.style.left = x + "px";
-    noBtn.style.top  = y + "px";
+    // 화면 전체 크기에서 버튼 크기만큼 뺀 범위 (안전 마진 20px 추가)
+    const maxX = window.innerWidth - btnWidth - 20;
+    const maxY = window.innerHeight - btnHeight - 20;
+
+    // 랜덤 좌표 생성 (최소 20px 띄우기)
+    const randomX = Math.max(20, Math.floor(Math.random() * maxX));
+    const randomY = Math.max(20, Math.floor(Math.random() * maxY));
+
+    noBtn.style.left = randomX + 'px';
+    noBtn.style.top = randomY + 'px';
   }
 
-  // PC: 올리면 도망
-  noBtn.addEventListener("mouseenter", moveNo);
+  // PC: 마우스 올리면 즉시 도망
+  noBtn.addEventListener("mouseover", runAway);
 
-  // 모바일: 누르려는 순간 도망
+  // 모바일/터치: 터치 시작하자마자 도망 (클릭 불가하게 만듦)
   noBtn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    moveNo();
-  }, { passive:false });
+    e.preventDefault(); // 클릭 발생 차단
+    runAway();
+  }, { passive: false });
 
-  // 클릭도 방지
+  // 혹시라도 클릭 이벤트가 발생하면 도망
   noBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    moveNo();
+    runAway();
   });
 
 })();
